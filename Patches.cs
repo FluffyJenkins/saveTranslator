@@ -17,15 +17,8 @@ namespace SaveTranslator {
         internal static int VanillaIDs = Enum.GetValues(typeof(BlockTypes)).Length;
 
         internal static ManMods manMods = Singleton.Manager<ManMods>.inst;
-        internal static ManLicenses manLicenses = Singleton.Manager<ManLicenses>.inst;
-        internal static RecipeManager recipeManager = Singleton.Manager<RecipeManager>.inst;
 
         internal static readonly FieldInfo m_CurrentSession = AccessTools.Field(typeof(ManMods), "m_CurrentSession");
-        internal static readonly MethodInfo SetBlockState = AccessTools.Method(typeof(ManLicenses), "SetBlockState");
-        internal static readonly FieldInfo m_ModdedRecipes = AccessTools.Field(typeof(RecipeManager), "m_ModdedRecipes");
-        internal static readonly FieldInfo m_SaveDataJSON = AccessTools.Field(typeof(ManSaveGame.SaveData), "m_SaveDataJSON");
-
-
 
         [HarmonyPostfix]
         internal static void Postfix(ref ManSaveGame.SaveData __instance, StreamReader streamReader, bool loadInfoOnly, bool assertOnFail, bool validate) {
@@ -37,7 +30,6 @@ namespace SaveTranslator {
                 //Get all the things we need so we can translate stuff
                 ModSessionInfo currentSession = (ModSessionInfo)m_CurrentSession.GetValue(manMods);
                 __instance.State.GetSaveData<ModSessionInfo>(ManSaveGame.SaveDataJSONType.ManMods, out ModSessionInfo info);
-
 
                 Dictionary<int, string> SessionBlockIDs = new Dictionary<int, string>(currentSession.BlockIDs);
                 foreach(BlockTypes block in Enum.GetValues(typeof(BlockTypes)))
@@ -60,7 +52,6 @@ namespace SaveTranslator {
                     newBlockID = blockID;
                     if(blockID < VanillaIDs)
                         return true;
-
                     if(info.BlockIDs.ContainsKey(blockID)) {
                         if(SwappedSessionBlockIDs.ContainsKey(info.BlockIDs[blockID])) {
                             newBlockID = SwappedSessionBlockIDs[info.BlockIDs[blockID]];
@@ -102,7 +93,6 @@ namespace SaveTranslator {
 
                 SaveTranslatorMod.logger.Trace($"Attempting to get inventory!!");
                 JObject manPlayerJSON = JsonConvert.DeserializeObject<JObject>(SaveDataJSON["ManPlayer"]);
-
 
                 if(manPlayerJSON["m_Inventory"].Type != JTokenType.Null) {
                     JArray inventoryJSON = (JArray)manPlayerJSON["m_Inventory"]["m_InventoryList"];
