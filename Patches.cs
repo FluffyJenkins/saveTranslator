@@ -49,15 +49,22 @@ namespace SaveTranslator {
                     SwappedSaveBlockIDs.Add(block.Value, block.Key);
 
                 bool saveIDToSessionID(int blockID, out int newBlockID) {
+                    SaveTranslatorMod.logger.Trace($"saveIDToSessionID [{blockID}]");
                     newBlockID = blockID;
-                    if(blockID < VanillaIDs)
+                    if(blockID < VanillaIDs) {
+                        SaveTranslatorMod.logger.Trace($"[{blockID}] is vanilla returning true");
                         return true;
+                    }
                     if(info.BlockIDs.ContainsKey(blockID)) {
+                        SaveTranslatorMod.logger.Trace("✔️ info.BlockIDs.ContainsKey");
                         if(SwappedSessionBlockIDs.ContainsKey(info.BlockIDs[blockID])) {
+                            SaveTranslatorMod.logger.Trace("✔️ SwappedSessionBlockIDs.ContainsKey");
                             newBlockID = SwappedSessionBlockIDs[info.BlockIDs[blockID]];
                             return true;
-                        }
-                    }
+                        } else
+                            SaveTranslatorMod.logger.Trace("❌ SwappedSessionBlockIDs.ContainsKey");
+                    } else
+                        SaveTranslatorMod.logger.Trace("❌ info.BlockIDs.ContainsKey");
                     return false;
                 }
 
@@ -105,7 +112,7 @@ namespace SaveTranslator {
                         SaveTranslatorMod.logger.Trace($"✔️ Found Block {SessionBlockIDs[blockIntID]}[{blockState.Value}] in save blockstates with ids of save[{blockState.Key}] session[{blockIntID}]");
                         translatedBlockStates.Add(blockIntID.ToString(), blockState.Value);
                     } else {
-                        SaveTranslatorMod.logger.Trace($"❌ Block {info.BlockIDs[saveID]}[{blockState.Value}] with saveID[{saveID}] was not found in session ");
+                        SaveTranslatorMod.logger.Trace($"❌ BlockID {blockState.Key}[{blockState.Value}] was not found in session/save");
                     }
                 }
 
@@ -156,7 +163,7 @@ namespace SaveTranslator {
                                 SaveTranslatorMod.logger.Trace("Searching through TechData's BlockSpecs");
 
                                 if(blockSpec["saveState"].SelectToken("353829868") != null) {
-                                    SaveTranslatorMod.logger.Trace($"Found a Fabricator! Checking for recipe");
+                                    SaveTranslatorMod.logger.Trace($"Found a Fabricator/ModuleItemConsume! Checking for recipe");
                                     if(blockSpec["saveState"]["353829868"]["consumeProgress"]["currentRecipe"].Type != JTokenType.Null) {
                                         SaveTranslatorMod.logger.Trace("Found a recipe!");
                                         JArray outputItems = (JArray)blockSpec["saveState"]["353829868"]["consumeProgress"]["currentRecipe"]["m_OutputItems"];
@@ -173,7 +180,7 @@ namespace SaveTranslator {
                                         SaveTranslatorMod.logger.Trace("Fab has no recipe currently set so don't need to translate!");
                                 }
 
-                                if(blockSpec["m_BlockType"].ToObject<int>() == 557) {
+                                if(blockSpec["m_BlockType"].ToObject<int>() == 557 && blockSpec["saveState"].SelectToken("1840377074") != null) {
                                     SaveTranslatorMod.logger.Trace($"found the vendor blocktype in the json!");
                                     JArray inventoryJSON = (JArray)blockSpec["saveState"]["1840377074"]["supplierSaveData"]["inventory"]["m_InventoryList"];
                                     translateInventoryJSON(ref inventoryJSON);
