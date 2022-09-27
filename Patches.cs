@@ -14,6 +14,8 @@ namespace SaveTranslator {
     [HarmonyPatch(typeof(ManSaveGame.SaveData), "Deserialize")]
     internal class Patches {
 
+        internal static string[] VanillaCorps = Enum.GetNames(typeof(FactionSubTypes));
+
         internal static int VanillaIDs = Enum.GetValues(typeof(BlockTypes)).Length;
 
         internal static ManMods manMods = Singleton.Manager<ManMods>.inst;
@@ -37,10 +39,6 @@ namespace SaveTranslator {
 
                 Dictionary<string, int> SwappedSessionBlockIDs = new Dictionary<string, int>();
                 foreach(KeyValuePair<int, string> block in SessionBlockIDs) {
-                    if(block.Key > VanillaIDs) {
-                        ModdedBlockDefinition blockDefinition = Singleton.Manager<ManMods>.inst.FindModdedAsset<ModdedBlockDefinition>(block.Value);
-                        SaveTranslatorMod.logger.Trace($"BlockDefinition for [{block.Value}] grade [{blockDefinition.m_Grade}] corp [{blockDefinition.m_Corporation}] licenseUnlock [{blockDefinition.m_UnlockWithLicense}]");
-                    }
                     SwappedSessionBlockIDs.Add(block.Value, block.Key);
                 }
 
@@ -85,8 +83,6 @@ namespace SaveTranslator {
                     }
                 }
 
-                //var a = Traverse.Create(manLicenses).Method("SetBlockState", new Type[] { typeof(BlockTypes), typeof(ManLicenses.BlockState) });
-
                 SaveTranslatorMod.logger.Trace("Attempting to get m_SaveDataJSON");
                 var stat = Traverse.Create(__instance).Field("m_State");
                 SaveTranslatorMod.logger.Trace("Traverse1");
@@ -113,6 +109,40 @@ namespace SaveTranslator {
                         translatedBlockStates.Add(blockIntID.ToString(), blockState.Value);
                     } else {
                         SaveTranslatorMod.logger.Trace($"❌ BlockID {blockState.Key}[{blockState.Value}] was not found in session/save");
+                    }
+                }
+
+                Dictionary<string, int> factionMaxLevels = new Dictionary<string, int>();
+                foreach(ManLicenses.ThresholdsTableEntry thresholdsTableEntry in Singleton.Manager<ManLicenses>.inst.m_ThresholdData) {
+                    FactionLicense.Thresholds thresholds = thresholdsTableEntry.thresholds;
+                    SaveTranslatorMod.logger.Trace($"Faction [{thresholdsTableEntry.faction}] maxXP[{thresholds.MaxXP}]");
+                    factionMaxLevels.Add(thresholdsTableEntry.faction.ToString(), thresholds.MaxXP);
+                }
+
+                foreach(KeyValuePair<int, string> block in SessionBlockIDs) {
+                    if(block.Key > VanillaIDs && !translatedBlockStates.ContainsKey(block.Key.ToString())) {
+                        SaveTranslatorMod.logger.Trace($"Block {block.Value}[{block.Key}] is not in blockStates");
+                        ModdedBlockDefinition blockDefinition = Singleton.Manager<ManMods>.inst.FindModdedAsset<ModdedBlockDefinition>(block.Value);
+                        string corpToLookup;
+                        if(VanillaCorps.Contains(blockDefinition.m_Corporation)) {
+                            corpToLookup = blockDefinition.m_Corporation;
+                        } else {
+                            ModdedCorpDefinition corpDefinition = Singleton.Manager<ManMods>.inst.FindCorp(blockDefinition.m_Corporation);
+                            corpToLookup = corpDefinition.m_RewardCorp;
+                        }
+
+                        int currentLevel = manLicenseJSON["m_FactionLicenseProgress"][corpToLookup]["m_CurrentLevel"].ToObject<int>() + 1;
+                        //+1 cause levels start at 0 where grades start at 1
+                        int currentXP = manLicenseJSON["m_FactionLicenseProgress"][corpToLookup]["m_CurrentXP"].ToObject<int>();
+
+                        SaveTranslatorMod.logger.Trace($"Checking corp[{corpToLookup}] level data! currentLevel[{currentLevel}] currentXP[{currentXP}]");
+                        bool maxLevelLicense = factionMaxLevels[corpToLookup] <= currentXP;
+                        SaveTranslatorMod.logger.Trace($"      maxLevelLicense[{maxLevelLicense}] ");
+                        if(maxLevelLicense || currentLevel > blockDefinition.m_Grade) {
+                            SaveTranslatorMod.logger.Trace($"✔️ Block {block.Value}[{block.Key}] should be unlocked, adding to blockStates!");
+                            translatedBlockStates.Add(block.Key.ToString(), 2);
+                        }
+                        SaveTranslatorMod.logger.Trace($"BlockDefinition for [{block.Value}] grade [{blockDefinition.m_Grade}] corp [{blockDefinition.m_Corporation}] licenseUnlock [{blockDefinition.m_UnlockWithLicense}]");
                     }
                 }
 
