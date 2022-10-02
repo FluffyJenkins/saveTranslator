@@ -123,6 +123,7 @@ namespace SaveTranslator {
                     if(block.Key > VanillaIDs && !translatedBlockStates.ContainsKey(block.Key.ToString())) {
                         SaveTranslatorMod.logger.Trace($"Block {block.Value}[{block.Key}] is not in blockStates");
                         ModdedBlockDefinition blockDefinition = Singleton.Manager<ManMods>.inst.FindModdedAsset<ModdedBlockDefinition>(block.Value);
+                        SaveTranslatorMod.logger.Trace($"Looking for modded asset blockDefinition with [{block.Value}]");
                         string corpToLookup;
                         if(VanillaCorps.Contains(blockDefinition.m_Corporation)) {
                             corpToLookup = blockDefinition.m_Corporation;
@@ -130,18 +131,23 @@ namespace SaveTranslator {
                             ModdedCorpDefinition corpDefinition = Singleton.Manager<ManMods>.inst.FindCorp(blockDefinition.m_Corporation);
                             corpToLookup = corpDefinition.m_RewardCorp;
                         }
+                        SaveTranslatorMod.logger.Trace($"corpToLookup [{corpToLookup}]");
+                        if(manLicenseJSON["m_FactionLicenseProgress"].SelectToken(corpToLookup) != null) {
+                            int currentLevel = manLicenseJSON["m_FactionLicenseProgress"][corpToLookup]["m_CurrentLevel"].ToObject<int>() + 1;
+                            //+1 cause levels start at 0 where grades start at 1
+                            int currentXP = manLicenseJSON["m_FactionLicenseProgress"][corpToLookup]["m_CurrentXP"].ToObject<int>();
 
-                        int currentLevel = manLicenseJSON["m_FactionLicenseProgress"][corpToLookup]["m_CurrentLevel"].ToObject<int>() + 1;
-                        //+1 cause levels start at 0 where grades start at 1
-                        int currentXP = manLicenseJSON["m_FactionLicenseProgress"][corpToLookup]["m_CurrentXP"].ToObject<int>();
-
-                        SaveTranslatorMod.logger.Trace($"Checking corp[{corpToLookup}] level data! currentLevel[{currentLevel}] currentXP[{currentXP}]");
-                        bool maxLevelLicense = factionMaxLevels[corpToLookup] <= currentXP;
-                        SaveTranslatorMod.logger.Trace($"      maxLevelLicense[{maxLevelLicense}] ");
-                        if(maxLevelLicense || currentLevel > blockDefinition.m_Grade) {
-                            SaveTranslatorMod.logger.Trace($"✔️ Block {block.Value}[{block.Key}] should be unlocked, adding to blockStates!");
-                            translatedBlockStates.Add(block.Key.ToString(), 2);
+                            SaveTranslatorMod.logger.Trace($"Checking corp[{corpToLookup}] level data! currentLevel[{currentLevel}] currentXP[{currentXP}]");
+                            bool maxLevelLicense = factionMaxLevels[corpToLookup] <= currentXP;
+                            SaveTranslatorMod.logger.Trace($"      maxLevelLicense[{maxLevelLicense}] ");
+                            if(maxLevelLicense || currentLevel > blockDefinition.m_Grade) {
+                                SaveTranslatorMod.logger.Trace($"✔️ Block {block.Value}[{block.Key}] should be unlocked, adding to blockStates!");
+                                translatedBlockStates.Add(block.Key.ToString(), 2);
+                            }
+                        } else {
+                            SaveTranslatorMod.logger.Trace($"Block does not have a valid reward corp! [{corpToLookup}]");
                         }
+
                         SaveTranslatorMod.logger.Trace($"BlockDefinition for [{block.Value}] grade [{blockDefinition.m_Grade}] corp [{blockDefinition.m_Corporation}] licenseUnlock [{blockDefinition.m_UnlockWithLicense}]");
                     }
                 }
