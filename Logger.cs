@@ -99,11 +99,20 @@ namespace SaveTranslator
                 Console.WriteLine($"[{loggerID}] {loggingLevelStr} is unrecognized logging level. Defaulting to {this.minLoggingLevel}");
             }
 
-            // Perform any injected setup
-            this.Setup();
+            try {
+                // Perform any injected setup
+                this.Setup();
+            }
+            catch (Exception ex) {
+                Console.WriteLine($"Error setting up logger");
+                Console.WriteLine(ex.ToString());
+            }
+            this.Debug("Logger Initialized");
         }
 
-        public void Setup() { }
+        public void Setup() {
+            this.Trace("Setup Hook called");
+        }
 
         private void Log(byte level, string message)
         {
